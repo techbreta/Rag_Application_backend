@@ -85,7 +85,6 @@ docker-compose.override.yml
 # Misc
 .cache/
 .parcel-cache/
-dist/
 
 # Local environment configuration
 config/local.js
