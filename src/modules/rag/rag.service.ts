@@ -112,7 +112,7 @@ const loadWebPage = async (url: string): Promise<string> => {
     selector: "p, h1, h2, h3, h4, h5, h6, li, td, th, span, div",
   });
   const docs = await loader.load();
-  return docs.map((d) => d.pageContent).join("\n");
+  return docs.map((d: any) => d.pageContent).join("\n");
 };
 
 // ── Text splitting ─────────────────────────────────────────────────
