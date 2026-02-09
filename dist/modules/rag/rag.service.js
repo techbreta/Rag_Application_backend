@@ -212,6 +212,11 @@ const searchChunks = async (documentId, query, limit = 5) => {
                 content: 1,
                 metadata: 1,
                 score: { $meta: "vectorSearchScore" },
+            }
+        },
+        {
+            $match: {
+                score: { $gt: 0.6 }, // filter out non-relevant results
             },
         },
         { $limit: limit },
@@ -280,6 +285,11 @@ const searchMultipleDocuments = async (documentIds, query, limit = 10) => {
                     documentId: 1,
                     documentName: { $arrayElemAt: ["$document.fileName", 0] },
                     score: { $meta: "vectorSearchScore" },
+                },
+            },
+            {
+                $match: {
+                    score: { $gt: 0.6 }, // filter out non-relevant results
                 },
             },
             { $limit: limit },
