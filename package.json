@@ -139,6 +139,7 @@
     "joi": "^17.5.0",
     "jsonwebtoken": "^9.0.3",
     "langchain": "^1.2.18",
+    "mammoth": "^1.11.0",
     "moment": "^2.29.4",
     "mongodb": "^7.1.0",
     "mongoose": "^7.0.2",

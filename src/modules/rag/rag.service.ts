@@ -47,6 +47,66 @@ const getEmbedding = async (text: string): Promise<number[]> => {
   return embedding;
 };
 
+// ── Utility: Detect document type from URL ────────────────────────
+const detectFileType = (url: string): string => {
+  const urlLower = url.toLowerCase();
+  if (urlLower.includes(".pdf")) return "pdf";
+  if (urlLower.includes(".docx")) return "docx";
+  if (urlLower.includes(".doc") && !urlLower.includes(".docx")) return "doc";
+  if (urlLower.includes(".txt")) return "txt";
+  if (urlLower.includes(".rtf")) return "rtf";
+  if (urlLower.includes(".odt")) return "odt";
+  if (urlLower.includes(".odp")) return "odp";
+  if (/\.(html?|htm)$/.test(urlLower)) return "html";
+  // Default to webpage if no recognized extension
+  return "webpage";
+};
+
+// ── DOCX loading via docx-parse ────────────────────────────────────
+const loadDocxFromUrl = async (url: string): Promise<string> => {
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new ApiError(
+      `Failed to fetch DOCX from URL: ${response.statusText}`,
+      httpStatus.BAD_REQUEST,
+    );
+  }
+
+  const arrayBuffer = await response.arrayBuffer();
+  const buffer = Buffer.from(arrayBuffer);
+
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { default: mammoth } = await import("mammoth");
+    const result = await mammoth.extractRawText({ buffer });
+    if (!result.value || result.value.trim().length === 0) {
+      throw new Error("No text extracted from DOCX");
+    }
+    return result.value;
+  } catch (error: any) {
+    throw new ApiError(
+      `DOCX parsing failed: ${error.message}`,
+      httpStatus.INTERNAL_SERVER_ERROR,
+    );
+  }
+};
+
+// ── TXT loading (plain text) ──────────────────────────────────────
+const loadTxtFromUrl = async (url: string): Promise<string> => {
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new ApiError(
+      `Failed to fetch TXT from URL: ${response.statusText}`,
+      httpStatus.BAD_REQUEST,
+    );
+  }
+  const text = await response.text();
+  if (!text || text.trim().length === 0) {
+    throw new ApiError("TXT file is empty", httpStatus.BAD_REQUEST);
+  }
+  return text;
+};
+
 // ── PDF loading via URL ────────────────────────────────────────────
 const loadPdfFromUrl = async (url: string): Promise<string> => {
   const response = await fetch(url);
@@ -140,10 +200,8 @@ export const uploadDocument = async (
   fileUrl: string,
   fileName: string,
 ): Promise<IRagDocumentDoc> => {
-  // Determine file type from URL
-  const isPdf =
-    fileUrl.toLowerCase().endsWith(".pdf") || fileUrl.includes(".pdf");
-  const fileType = isPdf ? "pdf" : "webpage";
+  // Detect file type from URL
+  const fileType = detectFileType(fileUrl);
 
   // 1. Create document record
   const ragDoc = await RagDocument.create({
@@ -156,12 +214,26 @@ export const uploadDocument = async (
 
   // Process asynchronously but still await so the caller knows if it failed
   try {
-    // 2. Load content
+    // 2. Load content based on file type
     let rawText: string;
-    if (fileType === "pdf") {
-      rawText = await loadPdfFromUrl(fileUrl);
-    } else {
-      rawText = await loadWebPage(fileUrl);
+    switch (fileType) {
+      case "pdf":
+        rawText = await loadPdfFromUrl(fileUrl);
+        break;
+      case "docx":
+      case "doc":
+        rawText = await loadDocxFromUrl(fileUrl);
+        break;
+      case "txt":
+        rawText = await loadTxtFromUrl(fileUrl);
+        break;
+      case "html":
+      case "webpage":
+        rawText = await loadWebPage(fileUrl);
+        break;
+      default:
+        // Fallback: try as webpage
+        rawText = await loadWebPage(fileUrl);
     }
 
     if (!rawText || rawText.trim().length === 0) {
@@ -243,7 +315,7 @@ export const searchChunks = async (
         content: 1,
         metadata: 1,
         score: { $meta: "vectorSearchScore" },
-      }
+      },
     },
     {
       $match: {
