@@ -22,7 +22,7 @@ const ragDocumentSchema = new mongoose.Schema<IRagDocumentDoc, IRagDocumentModel
     fileType: {
       type: String,
       required: true,
-      enum: ['pdf', 'webpage'],
+      enum: ['pdf', 'webpage','txt','docx'],
       default: 'pdf',
     },
     totalChunks: {

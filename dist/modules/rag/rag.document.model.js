@@ -24,7 +24,7 @@ const ragDocumentSchema = new mongoose_1.default.Schema({
     fileType: {
         type: String,
         required: true,
-        enum: ['pdf', 'webpage'],
+        enum: ['pdf', 'webpage', 'txt', 'docx'],
         default: 'pdf',
     },
     totalChunks: {
