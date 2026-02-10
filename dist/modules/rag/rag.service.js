@@ -168,6 +168,7 @@ const splitText = async (text) => {
     const splitter = new textsplitters_1.RecursiveCharacterTextSplitter({
         chunkSize: 1000,
         chunkOverlap: 200,
+        separators: ['\n\n', '\n', ' ', '']
     });
     return splitter.createDocuments([text]);
 };
