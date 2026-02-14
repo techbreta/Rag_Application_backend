@@ -4,6 +4,7 @@ import * as ragValidation from "./rag.validation";
 import RagDocument from "./rag.document.model";
 import RagChunk from "./rag.chunk.model";
 import RagChat from "./rag.chat.model";
+import RagImage from "./rag.image.model";
 
 export {
   ragController,
@@ -12,4 +13,5 @@ export {
   RagDocument,
   RagChunk,
   RagChat,
+  RagImage,
 };

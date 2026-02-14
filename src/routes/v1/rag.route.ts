@@ -13,6 +13,13 @@ router.post(
   ragController.uploadDocument,
 );
 
+router.post(
+  "/createImageAgent",
+  auth(),
+  validate(ragValidation.generateImage),
+  ragController.imageAgentChat,
+);
+
 router.get("/documents", auth(), ragController.getDocuments);
 
 router.get(
@@ -62,6 +69,36 @@ router.post(
   auth(),
   validate(ragValidation.search),
   ragController.search,
+);
+
+// ── Image endpoints ────────────────────────────────────────────────
+router.post(
+  "/images/generate",
+  auth(),
+  validate(ragValidation.generateImage),
+  ragController.imageAgentChat,
+);
+
+router.get("/images", auth(), ragController.getImages);
+
+router.get(
+  "/images/:imageId",
+  auth(),
+  validate(ragValidation.getImageById),
+  ragController.getImageById,
+);
+
+router.delete(
+  "/images/:imageId",
+  auth(),
+  validate(ragValidation.deleteImageById),
+  ragController.deleteImage,
+);
+
+router.post(
+  "/images/search",
+  validate(ragValidation.searchImages),
+  ragController.searchImages,
 );
 
 export default router;

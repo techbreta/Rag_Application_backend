@@ -88,3 +88,26 @@ export interface ISearchBody {
   query: string;
   limit?: number;
 }
+
+// ── Generated Image ────────────────────────────────────────────────
+export interface IRagImage {
+  userId: mongoose.Types.ObjectId;
+  prompt: string;
+  promptEmbedding: number[]; // Embedding of the generation prompt
+  cloudinaryUrl: string; // Image URL from Cloudinary
+  cloudinaryPublicId: string; // For deletion/management
+  mistralFileId: string; // Original fileId from Mistral
+  mistralConversationId: string; // For tracking the conversation
+  metadata: {
+    model: string; // e.g., "mistral-medium-2505"
+    temperature?: number;
+    generationTime?: number; // in milliseconds
+  };
+}
+
+export interface IRagImageDoc extends IRagImage, Document {
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface IRagImageModel extends Model<IRagImageDoc> {}

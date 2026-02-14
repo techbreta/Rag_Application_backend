@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.deleteChat = exports.getChat = exports.getChats = exports.deleteDocument = exports.getDocument = exports.search = exports.chat = exports.uploadDocument = void 0;
+exports.searchImages = exports.deleteImageById = exports.getImageById = exports.generateImage = exports.deleteChat = exports.getChat = exports.getChats = exports.deleteDocument = exports.getDocument = exports.search = exports.chat = exports.uploadDocument = void 0;
 const joi_1 = __importDefault(require("joi"));
 exports.uploadDocument = {
     body: joi_1.default.object().keys({
@@ -154,5 +154,54 @@ exports.deleteChat = {
         chatId: joi_1.default.string()
             .required()
             .regex(/^[0-9a-fA-F]{24}$/),
+    }),
+};
+exports.generateImage = {
+    body: joi_1.default.object().keys({
+        text: joi_1.default.string().required().trim().min(10).max(2000).messages({
+            "string.empty": "Image prompt cannot be empty",
+            "string.min": "Image prompt must be at least 10 characters",
+            "string.max": "Image prompt must not exceed 2000 characters",
+            "any.required": "Image prompt (text) is required",
+        }),
+    }),
+};
+exports.getImageById = {
+    params: joi_1.default.object().keys({
+        imageId: joi_1.default.string()
+            .required()
+            .regex(/^[0-9a-fA-F]{24}$/)
+            .messages({
+            "string.pattern.base": "imageId must be a valid MongoDB ObjectId",
+        }),
+    }),
+};
+exports.deleteImageById = {
+    params: joi_1.default.object().keys({
+        imageId: joi_1.default.string()
+            .required()
+            .regex(/^[0-9a-fA-F]{24}$/)
+            .messages({
+            "string.pattern.base": "imageId must be a valid MongoDB ObjectId",
+        }),
+    }),
+};
+exports.searchImages = {
+    body: joi_1.default.object().keys({
+        limit: joi_1.default.number()
+            .integer()
+            .min(1)
+            .max(50)
+            .optional()
+            .default(10)
+            .messages({
+            "number.base": "Limit must be a number",
+            "number.min": "Limit must be at least 1",
+            "number.max": "Limit cannot exceed 50",
+        }),
+        page: joi_1.default.number().integer().min(1).optional().default(1).messages({
+            "number.base": "Page must be a number",
+            "number.min": "Page must be at least 1",
+        }),
     }),
 };

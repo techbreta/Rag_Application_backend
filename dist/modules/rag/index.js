@@ -26,7 +26,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.RagChat = exports.RagChunk = exports.RagDocument = exports.ragValidation = exports.ragService = exports.ragController = void 0;
+exports.RagImage = exports.RagChat = exports.RagChunk = exports.RagDocument = exports.ragValidation = exports.ragService = exports.ragController = void 0;
 const ragController = __importStar(require("./rag.controller"));
 exports.ragController = ragController;
 const ragService = __importStar(require("./rag.service"));
@@ -39,3 +39,5 @@ const rag_chunk_model_1 = __importDefault(require("./rag.chunk.model"));
 exports.RagChunk = rag_chunk_model_1.default;
 const rag_chat_model_1 = __importDefault(require("./rag.chat.model"));
 exports.RagChat = rag_chat_model_1.default;
+const rag_image_model_1 = __importDefault(require("./rag.image.model"));
+exports.RagImage = rag_image_model_1.default;

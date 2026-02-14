@@ -8,9 +8,16 @@ import { Mistral } from "@mistralai/mistralai";
 import RagDocument from "./rag.document.model";
 import RagChunk from "./rag.chunk.model";
 import RagChat from "./rag.chat.model";
+import RagImage from "./rag.image.model";
 import ApiError from "../errors/ApiError";
 import httpStatus from "http-status";
 import { IRagDocumentDoc, IRagChatDoc } from "./rag.interfaces";
+import { img as uploadToCloudinary } from "../utils/cloudinary";
+
+import type {
+  ToolFileChunk,
+  MessageOutputEntry,
+} from "@mistralai/mistralai/models/components/index.js";
 
 // ── Mistral client ─────────────────────────────────────────────────
 const apiKey = process.env["MISTRAL_API_KEY"];
@@ -180,7 +187,7 @@ const splitText = async (text: string) => {
   const splitter = new RecursiveCharacterTextSplitter({
     chunkSize: 1000,
     chunkOverlap: 200,
-    separators: ['\n\n', '\n', ' ', '']
+    separators: ["\n\n", "\n", " ", ""],
   });
   return splitter.createDocuments([text]);
 };
@@ -820,4 +827,357 @@ export const deleteChat = async (
   }
   await RagChat.findByIdAndDelete(chatId);
   return chat;
+};
+
+export const createImageFromText = async (text: string, userId: string) => {
+  const startTime = Date.now();
+  const client = getMistralClient();
+
+  // Generate embedding for the prompt text
+  const promptEmbedding = await getEmbedding(text);
+
+  const conversation: any = await client.beta.conversations.start({
+    agentId: "ag_019c5deda865740d8a08ed6b6cca218f",
+    inputs: text,
+  });
+
+  console.log("Conversation with image agent:", conversation);
+  // Validate conversation response structure
+  if (!conversation?.outputs) {
+    throw new ApiError(
+      "Invalid response from image generation agent",
+      httpStatus.INTERNAL_SERVER_ERROR,
+    );
+  }
+
+  // ✅ Correct path to outputs
+  const outputs = conversation.outputs;
+
+  if (!Array.isArray(outputs) || outputs.length === 0) {
+    throw new ApiError(
+      "No output from image generation agent",
+      httpStatus.INTERNAL_SERVER_ERROR,
+    );
+  }
+
+  // Get last message output entry
+  const entry: MessageOutputEntry = outputs[
+    outputs.length - 1
+  ] as MessageOutputEntry;
+
+  // Handle case where agent returns a text message instead of generating an image
+  if (typeof entry.content === "string") {
+    // This happens when the agent declines or can't process the request
+    const message = entry.content;
+    throw new ApiError(
+      `Image generation failed: ${
+        message || "Agent unable to process request"
+      }`,
+      httpStatus.BAD_REQUEST,
+    );
+  }
+
+  // Find tool_file chunk (ensure content is an array)
+  const chunk = entry.content.find(
+    (c: any) => typeof c !== "string" && c.type === "tool_file",
+  );
+
+  if (!chunk || !("fileId" in chunk)) {
+    // If no tool_file found, check what content was returned
+    const contentTypes = Array.isArray(entry.content)
+      ? entry.content
+          .map((c: any) => (typeof c === "string" ? "text" : c.type))
+          .join(", ")
+      : "unknown";
+    throw new ApiError(
+      `Image generation failed: No image file in response. Content types: ${contentTypes}`,
+      httpStatus.BAD_REQUEST,
+    );
+  }
+
+  const fileChunk = chunk as ToolFileChunk;
+
+  // ❗ Use download (not get)
+  const fileStream = await client.files.download({
+    fileId: fileChunk.fileId,
+  });
+
+  // Convert stream to buffer
+  const chunks: Uint8Array[] = [];
+  const reader = fileStream.getReader();
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    chunks.push(value);
+  }
+
+  const buffer = Buffer.concat(chunks as any);
+  // fs.writeFileSync(tempFilePath, buffer as any);
+
+  // ── Upload to Cloudinary ───────────────────────────────────────────
+  let cloudinaryUrl: string | null = null;
+  let cloudinaryPublicId = "";
+
+  try {
+    cloudinaryUrl = await uploadToCloudinary(buffer);
+    if (!cloudinaryUrl) {
+      throw new Error("Cloudinary upload failed");
+    }
+
+    // Extract public_id from cloudinary URL
+    // Format: https://res.cloudinary.com/{cloud}/image/upload/v{version}/{folder}/{public_id}.{ext}
+    const urlParts = cloudinaryUrl.split("/");
+    const fileNameWithExt = urlParts[urlParts.length - 1];
+    if (!fileNameWithExt) {
+      throw new Error("Failed to extract filename from Cloudinary URL");
+    }
+    cloudinaryPublicId = fileNameWithExt.replace(/\.[^/.]+$/, "");
+  } catch (error) {
+    console.error("Cloudinary upload failed:", error);
+
+    throw new ApiError(
+      "Failed to upload image to Cloudinary",
+      httpStatus.INTERNAL_SERVER_ERROR,
+    );
+  }
+
+  // ── Save to Database ───────────────────────────────────────────────
+  const generationTime = Date.now() - startTime;
+
+  const ragImage = await RagImage.create({
+    userId: new mongoose.Types.ObjectId(userId),
+    prompt: text,
+    promptEmbedding,
+    cloudinaryUrl,
+    cloudinaryPublicId,
+    mistralFileId: fileChunk.fileId,
+    mistralConversationId: conversation.conversationId,
+    metadata: {
+      model: "mistral-medium-2505",
+      temperature: 0.3,
+      generationTime,
+    },
+  });
+
+  return {
+    message: "Image generated and saved successfully",
+    image: ragImage,
+    fileStream,
+  };
+};
+
+// ── Image Management Methods ───────────────────────────────────────
+
+/**
+ * Get all generated images for a user
+ */
+export const getImagesByUserId = async (userId: string) => {
+  const images = await RagImage.find({
+    userId: new mongoose.Types.ObjectId(userId),
+  })
+    .sort({ createdAt: -1 })
+    .select(
+      "prompt cloudinaryUrl mistralConversationId metadata createdAt updatedAt",
+    );
+
+  return images;
+};
+
+/**
+ * Get a specific image by ID (verify ownership)
+ */
+export const getImageById = async (userId: string, imageId: string) => {
+  const image = await RagImage.findOne({
+    _id: new mongoose.Types.ObjectId(imageId),
+    userId: new mongoose.Types.ObjectId(userId),
+  });
+
+  if (!image) {
+    throw new ApiError("Image not found", httpStatus.NOT_FOUND);
+  }
+
+  return image;
+};
+
+/**
+ * Delete a generated image and its Cloudinary file
+ */
+export const deleteImage = async (userId: string, imageId: string) => {
+  const image = await RagImage.findOne({
+    _id: new mongoose.Types.ObjectId(imageId),
+    userId: new mongoose.Types.ObjectId(userId),
+  });
+
+  if (!image) {
+    throw new ApiError("Image not found", httpStatus.NOT_FOUND);
+  }
+
+  // Delete from Cloudinary
+  const { deleteImageByUrl } = await import("../utils/cloudinary");
+  await deleteImageByUrl(image.cloudinaryUrl);
+
+  // Delete from database
+  await RagImage.deleteOne({
+    _id: new mongoose.Types.ObjectId(imageId),
+  });
+};
+
+/**
+ * Search images by prompt similarity using embedding with pagination
+ * Only searches when prompt is provided and not empty
+ */
+export const searchImagesByPrompt = async (
+  query: string,
+  limit: number = 10,
+  page: number = 1,
+) => {
+  // Validate that query is provided and not empty
+  if (!query || query.trim().length === 0) {
+    throw new ApiError("Search prompt cannot be empty", httpStatus.BAD_REQUEST);
+  }
+
+  // Get embedding for search query
+  const queryEmbedding = await getEmbedding(query);
+
+  // Validate embedding
+  if (!Array.isArray(queryEmbedding) || queryEmbedding.length === 0) {
+    throw new ApiError(
+      "Failed to generate embedding for search query",
+      httpStatus.INTERNAL_SERVER_ERROR,
+    );
+  }
+
+  // Ensure limit and page are valid numbers
+  const pageNum = Math.max(1, Math.floor(page || 1));
+  const pageSize = Math.min(Math.max(1, Math.floor(limit || 10)), 50); // max 50 per page
+  const skip = (pageNum - 1) * pageSize;
+
+  try {
+    // Use MongoDB aggregation for similarity search
+    const results = await (RagImage.collection as any)
+      .aggregate([
+        {
+          // Vector search (if available on MongoDB Atlas)
+          $vectorSearch: {
+            index: "image_vector_index",
+            path: "promptEmbedding",
+            queryVector: queryEmbedding,
+            numCandidates: 100,
+            limit: Math.min(100, skip + pageSize + 20), // fetch enough for pagination
+          },
+        },
+        {
+          // Get vector search score
+          $addFields: {
+            vectorSearchScore: { $meta: "vectorSearchScore" },
+          },
+        },
+        {
+          // Sort by relevance score
+          $sort: { vectorSearchScore: -1 },
+        },
+        {
+          // Skip for pagination
+          $skip: skip,
+        },
+        {
+          // Limit results per page
+          $limit: pageSize,
+        },
+        {
+          // Project relevant fields
+          $project: {
+            _id: 1,
+            prompt: 1,
+            cloudinaryUrl: 1,
+            vectorSearchScore: 1,
+            mistralConversationId: 1,
+            metadata: 1,
+            createdAt: 1,
+            updatedAt: 1,
+          },
+        },
+      ])
+      .toArray();
+
+    // Get total count for pagination
+    const totalCount = await RagImage.countDocuments({
+      
+    });
+
+    return {
+      data: results,
+      pagination: {
+        currentPage: pageNum,
+        pageSize,
+        totalCount,
+        totalPages: Math.ceil(totalCount / pageSize),
+        hasNextPage: pageNum < Math.ceil(totalCount / pageSize),
+        hasPreviousPage: pageNum > 1,
+      },
+    };
+  } catch (error: any) {
+    // Fallback to simple similarity search if vector search is not available
+    console.warn(
+      "Vector search failed, using fallback similarity search:",
+      error.message,
+    );
+
+    return searchImagesByPromptFallback( query, pageSize, pageNum);
+  }
+};
+
+/**
+ * Fallback search using dot-product similarity (for non-Atlas MongoDB)
+ */
+const searchImagesByPromptFallback = async (
+
+  query: string,
+  pageSize: number,
+  pageNum: number,
+) => {
+  const queryEmbedding = await getEmbedding(query);
+
+  // Fetch all user images
+  const allImages = await RagImage.find().select(
+    "prompt cloudinaryUrl promptEmbedding mistralConversationId metadata createdAt updatedAt",
+  );
+
+  // Calculate dot product similarity
+  const imagesWithSimilarity = allImages
+    .map((image) => {
+      let similarity = 0;
+      if (Array.isArray(image.promptEmbedding)) {
+        for (
+          let i = 0;
+          i < Math.min(image.promptEmbedding.length, queryEmbedding.length);
+          i++
+        ) {
+          similarity +=
+            (image.promptEmbedding[i] || 0) * (queryEmbedding[i] || 0);
+        }
+      }
+      return {
+        ...image.toObject(),
+        vectorSearchScore: similarity,
+      };
+    })
+    .sort((a, b) => b.vectorSearchScore - a.vectorSearchScore);
+
+  // Apply pagination
+  const skip = (pageNum - 1) * pageSize;
+  const paginatedResults = imagesWithSimilarity.slice(skip, skip + pageSize);
+
+  return {
+    data: paginatedResults,
+    pagination: {
+      currentPage: pageNum,
+      pageSize,
+      totalCount: allImages.length,
+      totalPages: Math.ceil(allImages.length / pageSize),
+      hasNextPage: pageNum < Math.ceil(allImages.length / pageSize),
+      hasPreviousPage: pageNum > 1,
+    },
+  };
 };

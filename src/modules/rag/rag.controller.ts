@@ -222,3 +222,91 @@ export const deleteChat = catchAsync(async (req: Request, res: Response) => {
   await ragService.deleteChat(req.user.id, req.params["chatId"] as string);
   res.status(httpStatus.NO_CONTENT).send();
 });
+export const imageAgentChat = catchAsync(
+  async (req: Request, res: Response) => {
+    const { text } = req.body;
+
+    const response = await ragService.createImageFromText(text, req.user.id);
+
+    if (!response.fileStream) {
+      throw new ApiError(
+        "Failed to generate image",
+        httpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+
+    // Return stored image data
+    res.status(httpStatus.CREATED).send({
+      status: "success",
+      data: {
+        message: response.message,
+        image: {
+          id: response.image._id,
+          prompt: response.image.prompt,
+          cloudinaryUrl: response.image.cloudinaryUrl,
+          mistralConversationId: response.image.mistralConversationId,
+          createdAt: response.image.createdAt,
+          metadata: response.image.metadata,
+        },
+      },
+    });
+  },
+);
+
+/**
+ * GET /v1/rag/images
+ * Get all generated images for the authenticated user
+ */
+export const getImages = catchAsync(async (req: Request, res: Response) => {
+  const images = await ragService.getImagesByUserId(req.user.id);
+  res.status(httpStatus.OK).send({
+    status: "success",
+    data: { images },
+  });
+});
+
+/**
+ * GET /v1/rag/images/:imageId
+ * Get a specific generated image
+ */
+export const getImageById = catchAsync(async (req: Request, res: Response) => {
+  const imageId = req.params["imageId"] as string;
+  if (!imageId) {
+    throw new ApiError("Image ID is required", httpStatus.BAD_REQUEST);
+  }
+  const image = await ragService.getImageById(req.user.id, imageId);
+  res.status(httpStatus.OK).send({
+    status: "success",
+    data: { image },
+  });
+});
+
+/**
+ * DELETE /v1/rag/images/:imageId
+ * Delete a generated image
+ */
+export const deleteImage = catchAsync(async (req: Request, res: Response) => {
+  const imageId = req.params["imageId"] as string;
+  if (!imageId) {
+    throw new ApiError("Image ID is required", httpStatus.BAD_REQUEST);
+  }
+  await ragService.deleteImage(req.user.id, imageId);
+  res.status(httpStatus.NO_CONTENT).send();
+});
+
+/**
+ * POST /v1/rag/images/search
+ * Search generated images by prompt embedding (similarity search) with pagination
+ */
+export const searchImages = catchAsync(async (req: Request, res: Response) => {
+  const { prompt, limit, page } = req.body;
+  const results = await ragService.searchImagesByPrompt(
+    prompt,
+    limit || 10,
+    page || 1,
+  );
+  res.status(httpStatus.OK).send({
+    status: "success",
+    data: results,
+  });
+});

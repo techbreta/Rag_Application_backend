@@ -175,3 +175,56 @@ export const deleteChat = {
       .regex(/^[0-9a-fA-F]{24}$/),
   }),
 };
+
+export const generateImage = {
+  body: Joi.object().keys({
+    text: Joi.string().required().trim().min(10).max(2000).messages({
+      "string.empty": "Image prompt cannot be empty",
+      "string.min": "Image prompt must be at least 10 characters",
+      "string.max": "Image prompt must not exceed 2000 characters",
+      "any.required": "Image prompt (text) is required",
+    }),
+  }),
+};
+
+export const getImageById = {
+  params: Joi.object().keys({
+    imageId: Joi.string()
+      .required()
+      .regex(/^[0-9a-fA-F]{24}$/)
+      .messages({
+        "string.pattern.base": "imageId must be a valid MongoDB ObjectId",
+      }),
+  }),
+};
+
+export const deleteImageById = {
+  params: Joi.object().keys({
+    imageId: Joi.string()
+      .required()
+      .regex(/^[0-9a-fA-F]{24}$/)
+      .messages({
+        "string.pattern.base": "imageId must be a valid MongoDB ObjectId",
+      }),
+  }),
+};
+
+export const searchImages = {
+  body: Joi.object().keys({
+    limit: Joi.number()
+      .integer()
+      .min(1)
+      .max(50)
+      .optional()
+      .default(10)
+      .messages({
+        "number.base": "Limit must be a number",
+        "number.min": "Limit must be at least 1",
+        "number.max": "Limit cannot exceed 50",
+      }),
+    page: Joi.number().integer().min(1).optional().default(1).messages({
+      "number.base": "Page must be a number",
+      "number.min": "Page must be at least 1",
+    }),
+  }),
+};
