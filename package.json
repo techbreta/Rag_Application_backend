@@ -113,6 +113,7 @@
     "@aws-sdk/s3-request-presigner": "^3.470.0",
     "@google-apps/meet": "^0.7.1",
     "@google-cloud/local-auth": "^3.0.1",
+    "@imgly/background-removal-node": "^1.4.5",
     "@langchain/community": "^1.1.12",
     "@langchain/core": "^1.1.19",
     "@langchain/mongodb": "^1.1.0",

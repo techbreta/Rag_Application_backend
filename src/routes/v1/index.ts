@@ -2,6 +2,7 @@ import express, { Router } from "express";
 import authRoute from "./auth.route";
 import userRoute from "./user.route";
 import ragRoute from "./rag.route";
+import imageRoute from "./image.route";
 
 const router = express.Router();
 interface IRoute {
@@ -21,6 +22,10 @@ const defaultIRoute: IRoute[] = [
   {
     path: "/rag",
     route: ragRoute,
+  },
+  {
+    path: "/image",
+    route: imageRoute,
   },
 ];
 
