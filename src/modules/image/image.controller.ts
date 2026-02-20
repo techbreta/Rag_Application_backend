@@ -23,3 +23,4 @@ export const removeBackground = catchAsync(
     stream.pipe(res);
   },
 );
+
