@@ -1,51 +1,25 @@
-const express = require('express');
-const bodyParser = require('body-parser');
+const express = require("express");
+const bodyParser = require("body-parser");
 
 const app = express();
-app.use(bodyParser.json({ limit: '50mb' }));
+app.use(bodyParser.json({ limit: "50mb" }));
 
-let bgLib;
-try {
-  bgLib = require('@imgly/background-removal-node');
-} catch (e) {
-  console.error('Failed to load @imgly/background-removal-node:', e);
-  process.exit(1);
-}
+// No heavy image-processing library is installed in this service.
+// The service is left as a lightweight stub that will return a clear error
+// response. If you want to enable ML-based background removal, install and
+// configure the desired library (e.g. @imgly/background-removal-node) and
+// re-enable the implementation below.
 
-app.post('/remove-background', async (req, res) => {
-  const { imageUrl } = req.body;
-  if (!imageUrl) return res.status(400).json({ message: 'imageUrl required' });
+app.post("/remove-background", async (req, res) => {
+  return res.status(501).json({
+    message:
+      "Background removal not available: processing-service has no image library installed. Install '@imgly/background-removal-node' (or another processor) or point your backend to a different processor.",
+  });
+});
 
-  try {
-    const out = await bgLib.removeBackground(imageUrl);
-
-    // Blob-like output
-    if (out && typeof out.arrayBuffer === 'function') {
-      const ab = await out.arrayBuffer();
-      const buf = Buffer.from(ab);
-      res.set('Content-Type', 'image/png');
-      return res.send(buf);
-    }
-
-    // Buffer
-    if (Buffer.isBuffer(out)) {
-      res.set('Content-Type', 'image/png');
-      return res.send(out);
-    }
-
-    // String (maybe base64)
-    if (typeof out === 'string') {
-      const m = out.match(/^data:(.+);base64,(.*)$/);
-      const b = m ? Buffer.from(m[2], 'base64') : Buffer.from(out, 'base64');
-      res.set('Content-Type', 'image/png');
-      return res.send(b);
-    }
-
-    return res.status(500).json({ message: 'Unknown output from background removal' });
-  } catch (err) {
-    console.error('Processing service error:', err && err.stack ? err.stack : err);
-    return res.status(500).json({ message: String(err) });
-  }
+// healthcheck
+app.get("/health", (req, res) => {
+  res.json({ status: "ok", processing: false });
 });
 
 const port = process.env.PORT || 5000;

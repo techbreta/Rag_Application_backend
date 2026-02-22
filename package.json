@@ -109,7 +109,6 @@
     "typescript": "^5.0.4"
   },
   "dependencies": {
-    "@imgly/background-removal-node": "^1.4.5",
     "@langchain/community": "^1.1.12",
     "@langchain/textsplitters": "^1.0.1",
     "@mistralai/mistralai": "^1.14.0",

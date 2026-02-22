@@ -1,5 +1,4 @@
-Processing service
-------------------
+## Processing service
 
 This small service hosts heavy image-processing libraries (e.g. `@imgly/background-removal-node`) in a container so your main Vercel-hosted backend can remain lightweight.
 

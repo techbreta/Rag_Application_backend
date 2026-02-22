@@ -1,0 +1,29 @@
+# Exclude the processing service and other heavy build artifacts from Vercel
+
+processing-service/
+processing-service/\*\*
+processing-service/node_modules/
+processing-service/package-lock.json
+processing-service/yarn.lock
+
+# Local env and editor files
+
+.env
+.env.\*
+.vscode/
+.DS_Store
+
+# Docker and CI
+
+docker-compose*.yml
+Dockerfile*
+
+# Tests / coverage
+
+coverage/
+/.nyc_output/
+
+# Ignore local build artifacts
+
+dist/
+build/
