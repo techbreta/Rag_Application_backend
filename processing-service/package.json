@@ -1,0 +1,13 @@
+{
+  "name": "processing-service",
+  "version": "0.1.0",
+  "description": "Heavy image processing service for background removal (Dockerized)",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "jimp": "^0.22.10"
+  }
+}

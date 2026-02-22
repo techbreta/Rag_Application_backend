@@ -150,9 +150,8 @@
   "overrides": {
     "@langchain/community": {
       "pdf-parse": "$pdf-parse"
-    }
-  ,
-  "@langchain/core": "1.1.27"
+    },
+    "@langchain/core": "1.1.27"
   },
   "config": {
     "commitizen": {
