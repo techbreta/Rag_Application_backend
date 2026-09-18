@@ -124,7 +124,7 @@ Disallow: /v1/
 
 # Sitemap location
 Sitemap: ${baseUrl}/sitemap.xml
-Host: ${baseUrl}
+
 `;
 };
 
