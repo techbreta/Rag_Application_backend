@@ -3,19 +3,23 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.notifyGoogleIndexing = exports.publishUrlNotification = exports.isPublicUrl = exports.isIndexingEnabled = void 0;
+exports.notifyGoogleIndexing = exports.publishUrlNotification = exports.getErrorDetails = exports.isPublicUrl = exports.isIndexingEnabled = exports.getGoogleAuth = exports.REQUEST_TIMEOUT_MS = void 0;
 const google_auth_library_1 = require("google-auth-library");
 const config_1 = __importDefault(require("../../config/config"));
 const logger_1 = __importDefault(require("../logger/logger"));
 const indexing_model_1 = __importDefault(require("./indexing.model"));
 const INDEXING_PUBLISH_ENDPOINT = "https://indexing.googleapis.com/v3/urlNotifications:publish";
-const INDEXING_SCOPE = "https://www.googleapis.com/auth/indexing";
-const REQUEST_TIMEOUT_MS = 15000;
+const GOOGLE_SCOPES = [
+    "https://www.googleapis.com/auth/indexing",
+    // Search Console URL Inspection (real index status)
+    "https://www.googleapis.com/auth/webmasters.readonly",
+];
+exports.REQUEST_TIMEOUT_MS = 15000;
 let auth;
 /**
  * Lazily build the Google client; null when no service account is configured
  */
-const getAuth = () => {
+const getGoogleAuth = () => {
     if (auth !== undefined)
         return auth;
     const { keyFile, credentials } = config_1.default.googleIndexing;
@@ -26,11 +30,12 @@ const getAuth = () => {
     }
     auth = new google_auth_library_1.GoogleAuth({
         ...(credentials ? { credentials } : { keyFile: keyFile }),
-        scopes: [INDEXING_SCOPE],
+        scopes: GOOGLE_SCOPES,
     });
     return auth;
 };
-const isIndexingEnabled = () => getAuth() !== null;
+exports.getGoogleAuth = getGoogleAuth;
+const isIndexingEnabled = () => (0, exports.getGoogleAuth)() !== null;
 exports.isIndexingEnabled = isIndexingEnabled;
 /**
  * Google only accepts URLs of a verified public site; skip local/dev URLs (e.g. CLIENT_URL=http://localhost:3000)
@@ -51,12 +56,13 @@ const getErrorDetails = (error) => {
     const message = err?.response?.data?.error?.message || err?.message || "Unknown error";
     return { ...(httpStatus !== undefined && { httpStatus }), message };
 };
+exports.getErrorDetails = getErrorDetails;
 /**
  * Notify Google that a URL was added/updated or removed, and record the outcome.
  * Never throws.
  */
 const publishUrlNotification = async (url, type = "URL_UPDATED") => {
-    const client = getAuth();
+    const client = (0, exports.getGoogleAuth)();
     if (!client) {
         return { success: false, error: "Google Indexing API is not configured" };
     }
@@ -70,13 +76,13 @@ const publishUrlNotification = async (url, type = "URL_UPDATED") => {
             url: INDEXING_PUBLISH_ENDPOINT,
             method: "POST",
             data: { url, type },
-            timeout: REQUEST_TIMEOUT_MS,
+            timeout: exports.REQUEST_TIMEOUT_MS,
         });
         result = { success: true };
         logger_1.default.info(`Google Indexing API: ${type} sent for ${url}`);
     }
     catch (error) {
-        const { httpStatus, message } = getErrorDetails(error);
+        const { httpStatus, message } = (0, exports.getErrorDetails)(error);
         result = { success: false, ...(httpStatus !== undefined && { httpStatus }), error: message };
         logger_1.default.error(`Google Indexing API: ${type} failed for ${url} (${httpStatus ?? "no response"}): ${message}`);
     }

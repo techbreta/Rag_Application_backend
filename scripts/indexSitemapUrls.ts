@@ -31,7 +31,7 @@ async function main() {
   const { limit, dryRun } = parseArgs();
 
   const { default: config } = await import("../src/config/config");
-  const { getSitemapEntries } = await import("../src/modules/seo/seo.service");
+  const { getSitemapUrls } = await import("../src/modules/seo/seo.service");
   const { publishUrlNotification, isIndexingEnabled, isPublicUrl } = await import(
     "../src/modules/seo/indexing.service"
   );
@@ -46,7 +46,7 @@ async function main() {
 
   await mongoose.connect(config.mongoose.url);
 
-  const urls = [...new Set((await getSitemapEntries()).map((e) => e.loc))];
+  const urls = await getSitemapUrls();
   const submitted = await IndexingSubmission.find(
     { url: { $in: urls }, type: "URL_UPDATED", status: "success" },
     { url: 1 },

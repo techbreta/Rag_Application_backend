@@ -44,6 +44,9 @@ const envVarsSchema = Joi.object()
     GOOGLE_INDEXING_CREDENTIALS: Joi.string().description(
       "Inline Google service account JSON (alternative to GOOGLE_INDEXING_KEY_FILE)",
     ),
+    GOOGLE_SEARCH_CONSOLE_SITE_URL: Joi.string().description(
+      "Search Console property for index status checks, e.g. sc-domain:ragai.website or https://www.ragai.website/",
+    ),
   })
   .unknown();
 
@@ -106,6 +109,7 @@ const config = {
     keyFile: (envVars.GOOGLE_INDEXING_KEY_FILE as string | undefined) ||
       (fs.existsSync(bundledIndexingKeyFile) ? bundledIndexingKeyFile : undefined),
     credentials: googleIndexingCredentials,
+    searchConsoleSiteUrl: envVars.GOOGLE_SEARCH_CONSOLE_SITE_URL as string | undefined,
   },
 };
 

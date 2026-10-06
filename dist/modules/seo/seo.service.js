@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.generateRobotsTxt = exports.generateSitemapXml = exports.getSitemapEntries = exports.getImagePageUrl = exports.getBlogPageUrl = void 0;
+exports.generateRobotsTxt = exports.generateSitemapXml = exports.getSitemapUrls = exports.getSitemapEntries = exports.getImagePageUrl = exports.getBlogPageUrl = void 0;
 const blog_model_1 = __importDefault(require("../blog/blog.model"));
 const rag_image_model_1 = __importDefault(require("../rag/rag.image.model"));
 const config_1 = __importDefault(require("../../config/config"));
@@ -95,6 +95,10 @@ const getSitemapEntries = async () => {
     ];
 };
 exports.getSitemapEntries = getSitemapEntries;
+const getSitemapUrls = async () => [
+    ...new Set((await (0, exports.getSitemapEntries)()).map((entry) => entry.loc)),
+];
+exports.getSitemapUrls = getSitemapUrls;
 /**
  * Generate XML sitemap containing all static routes, published blogs, and image detail pages
  */

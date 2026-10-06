@@ -41,6 +41,7 @@ const envVarsSchema = joi_1.default.object()
         .description("Mistral AI API key for embeddings and chat"),
     GOOGLE_INDEXING_KEY_FILE: joi_1.default.string().description("Path to the Google service account JSON key used for the Indexing API"),
     GOOGLE_INDEXING_CREDENTIALS: joi_1.default.string().description("Inline Google service account JSON (alternative to GOOGLE_INDEXING_KEY_FILE)"),
+    GOOGLE_SEARCH_CONSOLE_SITE_URL: joi_1.default.string().description("Search Console property for index status checks, e.g. sc-domain:ragai.website or https://www.ragai.website/"),
 })
     .unknown();
 const { value: envVars, error } = envVarsSchema
@@ -99,6 +100,7 @@ const config = {
         keyFile: envVars.GOOGLE_INDEXING_KEY_FILE ||
             (fs_1.default.existsSync(bundledIndexingKeyFile) ? bundledIndexingKeyFile : undefined),
         credentials: googleIndexingCredentials,
+        searchConsoleSiteUrl: envVars.GOOGLE_SEARCH_CONSOLE_SITE_URL,
     },
 };
 exports.default = config;

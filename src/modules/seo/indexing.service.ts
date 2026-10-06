@@ -4,8 +4,12 @@ import logger from "../logger/logger";
 import IndexingSubmission, { IndexingNotificationType } from "./indexing.model";
 
 const INDEXING_PUBLISH_ENDPOINT = "https://indexing.googleapis.com/v3/urlNotifications:publish";
-const INDEXING_SCOPE = "https://www.googleapis.com/auth/indexing";
-const REQUEST_TIMEOUT_MS = 15000;
+const GOOGLE_SCOPES = [
+  "https://www.googleapis.com/auth/indexing",
+  // Search Console URL Inspection (real index status)
+  "https://www.googleapis.com/auth/webmasters.readonly",
+];
+export const REQUEST_TIMEOUT_MS = 15000;
 
 export interface IIndexingResult {
   success: boolean;
@@ -19,7 +23,7 @@ let auth: GoogleAuth | null | undefined;
 /**
  * Lazily build the Google client; null when no service account is configured
  */
-const getAuth = (): GoogleAuth | null => {
+export const getGoogleAuth = (): GoogleAuth | null => {
   if (auth !== undefined) return auth;
 
   const { keyFile, credentials } = config.googleIndexing;
@@ -33,12 +37,12 @@ const getAuth = (): GoogleAuth | null => {
 
   auth = new GoogleAuth({
     ...(credentials ? { credentials } : { keyFile: keyFile as string }),
-    scopes: [INDEXING_SCOPE],
+    scopes: GOOGLE_SCOPES,
   });
   return auth;
 };
 
-export const isIndexingEnabled = (): boolean => getAuth() !== null;
+export const isIndexingEnabled = (): boolean => getGoogleAuth() !== null;
 
 /**
  * Google only accepts URLs of a verified public site; skip local/dev URLs (e.g. CLIENT_URL=http://localhost:3000)
@@ -52,7 +56,7 @@ export const isPublicUrl = (url: string): boolean => {
   }
 };
 
-const getErrorDetails =(error: unknown): { httpStatus?: number; message: string } => {
+export const getErrorDetails = (error: unknown): { httpStatus?: number; message: string } => {
   const err = error as {
     message?: string;
     response?: { status?: number; data?: { error?: { message?: string } } };
@@ -70,7 +74,7 @@ export const publishUrlNotification = async (
   url: string,
   type: IndexingNotificationType = "URL_UPDATED",
 ): Promise<IIndexingResult> => {
-  const client = getAuth();
+  const client = getGoogleAuth();
   if (!client) {
     return { success: false, error: "Google Indexing API is not configured" };
   }

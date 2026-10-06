@@ -105,6 +105,10 @@ export const getSitemapEntries = async (): Promise<ISitemapEntry[]> => {
   ];
 };
 
+export const getSitemapUrls = async (): Promise<string[]> => [
+  ...new Set((await getSitemapEntries()).map((entry) => entry.loc)),
+];
+
 /**
  * Generate XML sitemap containing all static routes, published blogs, and image detail pages
  */

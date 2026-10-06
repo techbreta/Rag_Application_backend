@@ -13,6 +13,7 @@ import mongoose from "mongoose";
 import app from "./app";
 import config from "./config/config";
 import logger from "./modules/logger/logger";
+import { startIndexStatusScheduler } from "./modules/seo/indexStatus.service";
 
 import { Server } from "http";
 
@@ -32,6 +33,8 @@ mongoose.connect(config.mongoose.url).then(() => {
 
   logger.info("Connected to MongoDB database");
   logger.info("Server timeouts configured for long-running operations");
+
+  startIndexStatusScheduler();
 
   // seedPlans();
 });

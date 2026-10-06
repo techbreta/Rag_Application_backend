@@ -26,16 +26,28 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.IndexingSubmission = exports.indexStatusService = exports.indexingController = exports.indexingService = exports.seoService = exports.seoController = void 0;
-const seoController = __importStar(require("./seo.controller"));
-exports.seoController = seoController;
-const seoService = __importStar(require("./seo.service"));
-exports.seoService = seoService;
-const indexingService = __importStar(require("./indexing.service"));
-exports.indexingService = indexingService;
-const indexingController = __importStar(require("./indexing.controller"));
-exports.indexingController = indexingController;
+exports.getIndexingUrls = exports.getIndexingStats = void 0;
+const http_status_1 = __importDefault(require("http-status"));
+const catchAsync_1 = __importDefault(require("../utils/catchAsync"));
 const indexStatusService = __importStar(require("./indexStatus.service"));
-exports.indexStatusService = indexStatusService;
-const indexing_model_1 = __importDefault(require("./indexing.model"));
-exports.IndexingSubmission = indexing_model_1.default;
+exports.getIndexingStats = (0, catchAsync_1.default)(async (_req, res) => {
+    const result = await indexStatusService.getIndexingStats();
+    res.status(http_status_1.default.OK).send({
+        status: "success",
+        data: result,
+    });
+});
+exports.getIndexingUrls = (0, catchAsync_1.default)(async (req, res) => {
+    const { page, limit, search, submissionStatus, verdict } = req.query;
+    const result = await indexStatusService.getIndexingUrls({
+        page: page ? Number(page) : 1,
+        limit: limit ? Number(limit) : 20,
+        search: search,
+        submissionStatus: submissionStatus,
+        verdict: verdict,
+    });
+    res.status(http_status_1.default.OK).send({
+        status: "success",
+        data: result,
+    });
+});

@@ -7,6 +7,7 @@ const express_1 = __importDefault(require("express"));
 const auth_1 = require("../../modules/auth");
 const admin_1 = require("../../modules/admin");
 const blog_1 = require("../../modules/blog");
+const seo_1 = require("../../modules/seo");
 const router = express_1.default.Router();
 // All admin routes strictly require authentication and the "adminAccess" right
 router.use((0, auth_1.auth)("adminAccess"));
@@ -32,4 +33,7 @@ router.get("/blogs/:blogId", blog_1.blogController.getAdminBlog);
 router.post("/blogs", blog_1.blogController.createBlog);
 router.patch("/blogs/:blogId", blog_1.blogController.updateBlog);
 router.delete("/blogs/:blogId", blog_1.blogController.deleteBlog);
+// ── Google Indexing ──
+router.get("/indexing/stats", seo_1.indexingController.getIndexingStats);
+router.get("/indexing/urls", seo_1.indexingController.getIndexingUrls);
 exports.default = router;
