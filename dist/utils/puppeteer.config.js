@@ -3,8 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.launchBrowser = launchBrowser;
-exports.launchBrowserWithRetry = launchBrowserWithRetry;
+exports.launchBrowserWithRetry = exports.launchBrowser = void 0;
 const puppeteer_1 = __importDefault(require("puppeteer"));
 const puppeteer_core_1 = __importDefault(require("puppeteer-core"));
 const chromium_1 = __importDefault(require("@sparticuz/chromium"));
@@ -234,6 +233,7 @@ async function launchBrowser() {
         defaultViewport: { width: 1920, height: 1080 },
     });
 }
+exports.launchBrowser = launchBrowser;
 // Enhanced browser launcher with better error handling and retries
 async function launchBrowserWithRetry(maxRetries = 3) {
     let lastError = null;
@@ -281,3 +281,4 @@ async function launchBrowserWithRetry(maxRetries = 3) {
     }
     throw lastError;
 }
+exports.launchBrowserWithRetry = launchBrowserWithRetry;

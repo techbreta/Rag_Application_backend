@@ -3,6 +3,8 @@ import Blog from "./blog.model";
 import { IBlog, IBlogFilter } from "./blog.interfaces";
 import ApiError from "../errors/ApiError";
 import httpStatus from "http-status";
+import { getBlogPageUrl } from "../seo/seo.service";
+import { notifyGoogleIndexing } from "../seo/indexing.service";
 
 function slugify(text: string): string {
   return text
@@ -216,6 +218,10 @@ export const createBlog = async (blogBody: Partial<IBlog>) => {
     publishedAt: blogBody.status === "published" ? new Date() : undefined,
   });
 
+  if (blog.status === "published") {
+    notifyGoogleIndexing(getBlogPageUrl(blog.slug));
+  }
+
   return blog;
 };
 
@@ -231,6 +237,9 @@ export const updateBlog = async (id: string, updateBody: Partial<IBlog>) => {
   if (!blog) {
     throw new ApiError("Blog not found", httpStatus.NOT_FOUND);
   }
+
+  const wasPublished = blog.status === "published";
+  const previousSlug = blog.slug;
 
   if (updateBody.slug && updateBody.slug !== blog.slug) {
     const slug = slugify(updateBody.slug);
@@ -251,6 +260,14 @@ export const updateBlog = async (id: string, updateBody: Partial<IBlog>) => {
 
   Object.assign(blog, updateBody);
   await blog.save();
+
+  if (wasPublished && (blog.status !== "published" || blog.slug !== previousSlug)) {
+    notifyGoogleIndexing(getBlogPageUrl(previousSlug), "URL_DELETED");
+  }
+  if (blog.status === "published") {
+    notifyGoogleIndexing(getBlogPageUrl(blog.slug));
+  }
+
   return blog;
 };
 
@@ -265,6 +282,10 @@ export const deleteBlog = async (id: string) => {
   const blog = await Blog.findByIdAndDelete(id);
   if (!blog) {
     throw new ApiError("Blog not found", httpStatus.NOT_FOUND);
+  }
+
+  if (blog.status === "published") {
+    notifyGoogleIndexing(getBlogPageUrl(blog.slug), "URL_DELETED");
   }
 
   return { success: true };

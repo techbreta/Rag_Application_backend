@@ -1,5 +1,10 @@
+import fs from "fs";
+import path from "path";
 import Joi from "joi";
 import "dotenv/config";
+
+// Copied into dist/ by tsc (see tsconfig "include"); gitignored, never committed
+const bundledIndexingKeyFile = path.join(__dirname, "../modules/json/ragai-indexing-dab48234d203.json");
 
 const envVarsSchema = Joi.object()
   .keys({
@@ -33,6 +38,12 @@ const envVarsSchema = Joi.object()
     MISTRAL_API_KEY: Joi.string()
       .required()
       .description("Mistral AI API key for embeddings and chat"),
+    GOOGLE_INDEXING_KEY_FILE: Joi.string().description(
+      "Path to the Google service account JSON key used for the Indexing API",
+    ),
+    GOOGLE_INDEXING_CREDENTIALS: Joi.string().description(
+      "Inline Google service account JSON (alternative to GOOGLE_INDEXING_KEY_FILE)",
+    ),
   })
   .unknown();
 
@@ -42,6 +53,16 @@ const { value: envVars, error } = envVarsSchema
 
 if (error) {
   throw new Error(`Config validation error: ${error.message}`);
+}
+
+let googleIndexingCredentials: Record<string, string> | undefined;
+if (envVars.GOOGLE_INDEXING_CREDENTIALS) {
+  try {
+    googleIndexingCredentials = JSON.parse(envVars.GOOGLE_INDEXING_CREDENTIALS);
+  } catch {
+    // Do not include the parse error: it can echo parts of the private key
+    throw new Error("Config validation error: GOOGLE_INDEXING_CREDENTIALS is not valid JSON");
+  }
 }
 
 const config = {
@@ -81,6 +102,11 @@ const config = {
   },
   clientUrl: envVars.CLIENT_URL,
   mistralApiKey: envVars.MISTRAL_API_KEY,
+  googleIndexing: {
+    keyFile: (envVars.GOOGLE_INDEXING_KEY_FILE as string | undefined) ||
+      (fs.existsSync(bundledIndexingKeyFile) ? bundledIndexingKeyFile : undefined),
+    credentials: googleIndexingCredentials,
+  },
 };
 
 export default config;

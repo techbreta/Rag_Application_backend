@@ -3,8 +3,12 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+const fs_1 = __importDefault(require("fs"));
+const path_1 = __importDefault(require("path"));
 const joi_1 = __importDefault(require("joi"));
 require("dotenv/config");
+// Copied into dist/ by tsc (see tsconfig "include"); gitignored, never committed
+const bundledIndexingKeyFile = path_1.default.join(__dirname, "../modules/json/ragai-indexing-dab48234d203.json");
 const envVarsSchema = joi_1.default.object()
     .keys({
     NODE_ENV: joi_1.default.string()
@@ -35,6 +39,8 @@ const envVarsSchema = joi_1.default.object()
     MISTRAL_API_KEY: joi_1.default.string()
         .required()
         .description("Mistral AI API key for embeddings and chat"),
+    GOOGLE_INDEXING_KEY_FILE: joi_1.default.string().description("Path to the Google service account JSON key used for the Indexing API"),
+    GOOGLE_INDEXING_CREDENTIALS: joi_1.default.string().description("Inline Google service account JSON (alternative to GOOGLE_INDEXING_KEY_FILE)"),
 })
     .unknown();
 const { value: envVars, error } = envVarsSchema
@@ -42,6 +48,16 @@ const { value: envVars, error } = envVarsSchema
     .validate(process.env);
 if (error) {
     throw new Error(`Config validation error: ${error.message}`);
+}
+let googleIndexingCredentials;
+if (envVars.GOOGLE_INDEXING_CREDENTIALS) {
+    try {
+        googleIndexingCredentials = JSON.parse(envVars.GOOGLE_INDEXING_CREDENTIALS);
+    }
+    catch {
+        // Do not include the parse error: it can echo parts of the private key
+        throw new Error("Config validation error: GOOGLE_INDEXING_CREDENTIALS is not valid JSON");
+    }
 }
 const config = {
     env: envVars.NODE_ENV,
@@ -79,5 +95,10 @@ const config = {
     },
     clientUrl: envVars.CLIENT_URL,
     mistralApiKey: envVars.MISTRAL_API_KEY,
+    googleIndexing: {
+        keyFile: envVars.GOOGLE_INDEXING_KEY_FILE ||
+            (fs_1.default.existsSync(bundledIndexingKeyFile) ? bundledIndexingKeyFile : undefined),
+        credentials: googleIndexingCredentials,
+    },
 };
 exports.default = config;

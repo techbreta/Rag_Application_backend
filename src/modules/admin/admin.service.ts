@@ -6,6 +6,8 @@ import RagChunk from "../rag/rag.chunk.model";
 import RagImage from "../rag/rag.image.model";
 import ApiError from "../errors/ApiError";
 import httpStatus from "http-status";
+import { getImagePageUrl } from "../seo/seo.service";
+import { notifyGoogleIndexing } from "../seo/indexing.service";
 import {
   IAdminStats,
   IAdminUserFilter,
@@ -482,6 +484,7 @@ export const deleteImageAdmin = async (imageId: string) => {
   }
 
   await RagImage.findByIdAndDelete(imageId);
+  notifyGoogleIndexing(getImagePageUrl(image), "URL_DELETED");
   return { success: true };
 };
 

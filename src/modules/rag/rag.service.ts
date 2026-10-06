@@ -13,6 +13,8 @@ import ApiError from "../errors/ApiError";
 import httpStatus from "http-status";
 import { IRagDocumentDoc, IRagChatDoc } from "./rag.interfaces";
 import { img as uploadToCloudinary } from "../utils/cloudinary";
+import { getImagePageUrl } from "../seo/seo.service";
+import { notifyGoogleIndexing } from "../seo/indexing.service";
 
 import type {
   ToolFileChunk,
@@ -960,6 +962,8 @@ export const createImageFromText = async (text: string, userId: string) => {
     },
   });
 
+  notifyGoogleIndexing(getImagePageUrl(ragImage));
+
   return {
     message: "Image generated and saved successfully",
     image: ragImage,
@@ -1046,6 +1050,8 @@ export const deleteImage = async (userId: string, imageId: string) => {
   await RagImage.deleteOne({
     _id: new mongoose.Types.ObjectId(imageId),
   });
+
+  notifyGoogleIndexing(getImagePageUrl(image), "URL_DELETED");
 };
 
 /**

@@ -1,7 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.removeBackgroundBufferFromUrl = removeBackgroundBufferFromUrl;
-exports.bufferToStream = bufferToStream;
+exports.bufferToStream = exports.removeBackgroundBufferFromUrl = void 0;
 const stream_1 = require("stream");
 const url_1 = require("url");
 const http = require("http");
@@ -173,6 +172,7 @@ async function removeBackgroundBufferFromUrl(imageUrl) {
     }
     throw new Error("@imgly/background-removal-node API not recognized. Please check the package docs.");
 }
+exports.removeBackgroundBufferFromUrl = removeBackgroundBufferFromUrl;
 function bufferToStream(buffer) {
     if (!buffer)
         throw new Error("No buffer provided to bufferToStream");
@@ -180,3 +180,4 @@ function bufferToStream(buffer) {
         buffer = Buffer.from(buffer);
     return stream_1.Readable.from(buffer);
 }
+exports.bufferToStream = bufferToStream;

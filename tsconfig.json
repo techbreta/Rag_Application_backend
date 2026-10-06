@@ -38,7 +38,7 @@
     "skipLibCheck": true
   },
   "include": [
-    "src/**/*", "src/modules/authjson/authfile.json", "src/modules/authjson/file.json"
+    "src/**/*", "src/modules/authjson/authfile.json", "src/modules/authjson/file.json", "src/modules/json/*.json"
   ],
   "exclude": [
     "node_modules",

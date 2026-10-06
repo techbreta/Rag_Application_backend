@@ -8,6 +8,8 @@ const mongoose_1 = __importDefault(require("mongoose"));
 const blog_model_1 = __importDefault(require("./blog.model"));
 const ApiError_1 = __importDefault(require("../errors/ApiError"));
 const http_status_1 = __importDefault(require("http-status"));
+const seo_service_1 = require("../seo/seo.service");
+const indexing_service_1 = require("../seo/indexing.service");
 function slugify(text) {
     return text
         .toString()
@@ -186,6 +188,9 @@ const createBlog = async (blogBody) => {
         readTimeMinutes: readTime,
         publishedAt: blogBody.status === "published" ? new Date() : undefined,
     });
+    if (blog.status === "published") {
+        (0, indexing_service_1.notifyGoogleIndexing)((0, seo_service_1.getBlogPageUrl)(blog.slug));
+    }
     return blog;
 };
 exports.createBlog = createBlog;
@@ -200,6 +205,8 @@ const updateBlog = async (id, updateBody) => {
     if (!blog) {
         throw new ApiError_1.default("Blog not found", http_status_1.default.NOT_FOUND);
     }
+    const wasPublished = blog.status === "published";
+    const previousSlug = blog.slug;
     if (updateBody.slug && updateBody.slug !== blog.slug) {
         const slug = slugify(updateBody.slug);
         const existing = await blog_model_1.default.findOne({ slug, _id: { $ne: blog._id } });
@@ -216,6 +223,12 @@ const updateBlog = async (id, updateBody) => {
     }
     Object.assign(blog, updateBody);
     await blog.save();
+    if (wasPublished && (blog.status !== "published" || blog.slug !== previousSlug)) {
+        (0, indexing_service_1.notifyGoogleIndexing)((0, seo_service_1.getBlogPageUrl)(previousSlug), "URL_DELETED");
+    }
+    if (blog.status === "published") {
+        (0, indexing_service_1.notifyGoogleIndexing)((0, seo_service_1.getBlogPageUrl)(blog.slug));
+    }
     return blog;
 };
 exports.updateBlog = updateBlog;
@@ -229,6 +242,9 @@ const deleteBlog = async (id) => {
     const blog = await blog_model_1.default.findByIdAndDelete(id);
     if (!blog) {
         throw new ApiError_1.default("Blog not found", http_status_1.default.NOT_FOUND);
+    }
+    if (blog.status === "published") {
+        (0, indexing_service_1.notifyGoogleIndexing)((0, seo_service_1.getBlogPageUrl)(blog.slug), "URL_DELETED");
     }
     return { success: true };
 };

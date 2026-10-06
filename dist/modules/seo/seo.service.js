@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.generateRobotsTxt = exports.generateSitemapXml = void 0;
+exports.generateRobotsTxt = exports.generateSitemapXml = exports.getSitemapEntries = exports.getImagePageUrl = exports.getBlogPageUrl = void 0;
 const blog_model_1 = __importDefault(require("../blog/blog.model"));
 const rag_image_model_1 = __importDefault(require("../rag/rag.image.model"));
 const config_1 = __importDefault(require("../../config/config"));
@@ -38,11 +38,16 @@ function escapeXml(unsafe) {
         }
     });
 }
+const getBaseUrl = () => (config_1.default.clientUrl || "https://www.ragai.website").replace(/\/+$/, "");
+const getBlogPageUrl = (slug) => `${getBaseUrl()}/blog/${slug}`;
+exports.getBlogPageUrl = getBlogPageUrl;
+const getImagePageUrl = (image) => `${getBaseUrl()}/free-images/${createPromptSlug(image.prompt, image._id.toString())}`;
+exports.getImagePageUrl = getImagePageUrl;
 /**
- * Generate XML sitemap containing all static routes, published blogs, and image detail pages
+ * All public URLs listed in the sitemap: static routes, published blogs, and image detail pages
  */
-const generateSitemapXml = async () => {
-    const baseUrl = (config_1.default.clientUrl || "https://www.ragai.website").replace(/\/+$/, "");
+const getSitemapEntries = async () => {
+    const baseUrl = getBaseUrl();
     const now = new Date().toISOString();
     // 1. Static Core Landing & Product Pages
     const staticUrls = [
@@ -68,36 +73,41 @@ const generateSitemapXml = async () => {
         .sort({ createdAt: -1 })
         .limit(1000)
         .lean();
+    return [
+        ...staticUrls.map((item) => ({
+            loc: `${baseUrl}${item.path}`,
+            lastmod: now,
+            changefreq: item.changefreq,
+            priority: item.priority,
+        })),
+        ...blogs.map((blog) => ({
+            loc: (0, exports.getBlogPageUrl)(blog.slug),
+            lastmod: (blog.updatedAt || blog.publishedAt || new Date()).toISOString(),
+            changefreq: "weekly",
+            priority: "0.8",
+        })),
+        ...images.map((img) => ({
+            loc: (0, exports.getImagePageUrl)(img),
+            lastmod: (img.updatedAt || img.createdAt || new Date()).toISOString(),
+            changefreq: "weekly",
+            priority: "0.7",
+        })),
+    ];
+};
+exports.getSitemapEntries = getSitemapEntries;
+/**
+ * Generate XML sitemap containing all static routes, published blogs, and image detail pages
+ */
+const generateSitemapXml = async () => {
+    const entries = await (0, exports.getSitemapEntries)();
     let xml = `<?xml version="1.0" encoding="UTF-8"?>\n`;
     xml += `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">\n`;
-    // Static routes
-    for (const item of staticUrls) {
+    for (const entry of entries) {
         xml += `  <url>\n`;
-        xml += `    <loc>${escapeXml(`${baseUrl}${item.path}`)}</loc>\n`;
-        xml += `    <lastmod>${now}</lastmod>\n`;
-        xml += `    <changefreq>${item.changefreq}</changefreq>\n`;
-        xml += `    <priority>${item.priority}</priority>\n`;
-        xml += `  </url>\n`;
-    }
-    // Blog posts
-    for (const blog of blogs) {
-        const lastMod = (blog.updatedAt || blog.publishedAt || new Date()).toISOString();
-        xml += `  <url>\n`;
-        xml += `    <loc>${escapeXml(`${baseUrl}/blog/${blog.slug}`)}</loc>\n`;
-        xml += `    <lastmod>${lastMod}</lastmod>\n`;
-        xml += `    <changefreq>weekly</changefreq>\n`;
-        xml += `    <priority>0.8</priority>\n`;
-        xml += `  </url>\n`;
-    }
-    // Image detail pages
-    for (const img of images) {
-        const slug = createPromptSlug(img.prompt, img._id.toString());
-        const lastMod = (img.updatedAt || img.createdAt || new Date()).toISOString();
-        xml += `  <url>\n`;
-        xml += `    <loc>${escapeXml(`${baseUrl}/free-images/${slug}`)}</loc>\n`;
-        xml += `    <lastmod>${lastMod}</lastmod>\n`;
-        xml += `    <changefreq>weekly</changefreq>\n`;
-        xml += `    <priority>0.7</priority>\n`;
+        xml += `    <loc>${escapeXml(entry.loc)}</loc>\n`;
+        xml += `    <lastmod>${entry.lastmod}</lastmod>\n`;
+        xml += `    <changefreq>${entry.changefreq}</changefreq>\n`;
+        xml += `    <priority>${entry.priority}</priority>\n`;
         xml += `  </url>\n`;
     }
     xml += `</urlset>\n`;
@@ -108,7 +118,7 @@ exports.generateSitemapXml = generateSitemapXml;
  * Generate standard robots.txt for search engines
  */
 const generateRobotsTxt = () => {
-    const baseUrl = (config_1.default.clientUrl || "https://www.ragai.website").replace(/\/+$/, "");
+    const baseUrl = getBaseUrl();
     return `# Robots.txt for RagAI Enterprise Platform
 User-agent: *
 Allow: /
@@ -119,7 +129,7 @@ Disallow: /v1/
 
 # Sitemap location
 Sitemap: ${baseUrl}/sitemap.xml
-Host: ${baseUrl}
+
 `;
 };
 exports.generateRobotsTxt = generateRobotsTxt;

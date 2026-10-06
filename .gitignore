@@ -88,3 +88,7 @@ docker-compose.override.yml
 
 # Local environment configuration
 config/local.js
+
+# Google service account keys (never commit)
+src/modules/json/
+dist/modules/json/

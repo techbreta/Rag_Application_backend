@@ -34,11 +34,26 @@ function escapeXml(unsafe: string): string {
   });
 }
 
+const getBaseUrl = (): string =>
+  (config.clientUrl || "https://www.ragai.website").replace(/\/+$/, "");
+
+export const getBlogPageUrl = (slug: string): string => `${getBaseUrl()}/blog/${slug}`;
+
+export const getImagePageUrl = (image: { _id: { toString(): string }; prompt: string }): string =>
+  `${getBaseUrl()}/free-images/${createPromptSlug(image.prompt, image._id.toString())}`;
+
+export interface ISitemapEntry {
+  loc: string;
+  lastmod: string;
+  changefreq: string;
+  priority: string;
+}
+
 /**
- * Generate XML sitemap containing all static routes, published blogs, and image detail pages
+ * All public URLs listed in the sitemap: static routes, published blogs, and image detail pages
  */
-export const generateSitemapXml = async (): Promise<string> => {
-  const baseUrl = (config.clientUrl || "https://www.ragai.website").replace(/\/+$/, "");
+export const getSitemapEntries = async (): Promise<ISitemapEntry[]> => {
+  const baseUrl = getBaseUrl();
   const now = new Date().toISOString();
 
   // 1. Static Core Landing & Product Pages
@@ -68,39 +83,43 @@ export const generateSitemapXml = async (): Promise<string> => {
     .limit(1000)
     .lean();
 
+  return [
+    ...staticUrls.map((item) => ({
+      loc: `${baseUrl}${item.path}`,
+      lastmod: now,
+      changefreq: item.changefreq,
+      priority: item.priority,
+    })),
+    ...blogs.map((blog) => ({
+      loc: getBlogPageUrl(blog.slug),
+      lastmod: (blog.updatedAt || blog.publishedAt || new Date()).toISOString(),
+      changefreq: "weekly",
+      priority: "0.8",
+    })),
+    ...images.map((img) => ({
+      loc: getImagePageUrl(img),
+      lastmod: (img.updatedAt || img.createdAt || new Date()).toISOString(),
+      changefreq: "weekly",
+      priority: "0.7",
+    })),
+  ];
+};
+
+/**
+ * Generate XML sitemap containing all static routes, published blogs, and image detail pages
+ */
+export const generateSitemapXml = async (): Promise<string> => {
+  const entries = await getSitemapEntries();
+
   let xml = `<?xml version="1.0" encoding="UTF-8"?>\n`;
   xml += `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">\n`;
 
-  // Static routes
-  for (const item of staticUrls) {
+  for (const entry of entries) {
     xml += `  <url>\n`;
-    xml += `    <loc>${escapeXml(`${baseUrl}${item.path}`)}</loc>\n`;
-    xml += `    <lastmod>${now}</lastmod>\n`;
-    xml += `    <changefreq>${item.changefreq}</changefreq>\n`;
-    xml += `    <priority>${item.priority}</priority>\n`;
-    xml += `  </url>\n`;
-  }
-
-  // Blog posts
-  for (const blog of blogs) {
-    const lastMod = (blog.updatedAt || blog.publishedAt || new Date()).toISOString();
-    xml += `  <url>\n`;
-    xml += `    <loc>${escapeXml(`${baseUrl}/blog/${blog.slug}`)}</loc>\n`;
-    xml += `    <lastmod>${lastMod}</lastmod>\n`;
-    xml += `    <changefreq>weekly</changefreq>\n`;
-    xml += `    <priority>0.8</priority>\n`;
-    xml += `  </url>\n`;
-  }
-
-  // Image detail pages
-  for (const img of images) {
-    const slug = createPromptSlug(img.prompt, img._id.toString());
-    const lastMod = (img.updatedAt || img.createdAt || new Date()).toISOString();
-    xml += `  <url>\n`;
-    xml += `    <loc>${escapeXml(`${baseUrl}/free-images/${slug}`)}</loc>\n`;
-    xml += `    <lastmod>${lastMod}</lastmod>\n`;
-    xml += `    <changefreq>weekly</changefreq>\n`;
-    xml += `    <priority>0.7</priority>\n`;
+    xml += `    <loc>${escapeXml(entry.loc)}</loc>\n`;
+    xml += `    <lastmod>${entry.lastmod}</lastmod>\n`;
+    xml += `    <changefreq>${entry.changefreq}</changefreq>\n`;
+    xml += `    <priority>${entry.priority}</priority>\n`;
     xml += `  </url>\n`;
   }
 
@@ -112,7 +131,7 @@ export const generateSitemapXml = async (): Promise<string> => {
  * Generate standard robots.txt for search engines
  */
 export const generateRobotsTxt = (): string => {
-  const baseUrl = (config.clientUrl || "https://www.ragai.website").replace(/\/+$/, "");
+  const baseUrl = getBaseUrl();
 
   return `# Robots.txt for RagAI Enterprise Platform
 User-agent: *
